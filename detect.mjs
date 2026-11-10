@@ -2,9 +2,9 @@
 //
 //   BASE_URL=https://host/v1 API_KEY=sk-... node detect.mjs <model> [advertised-model]
 //
-// The endpoint must be OpenAI-compatible (/chat/completions) and accept images.
+// The endpoint must be OpenAI-compatible (/chat/completions or /responses) and accept images.
 // Answers are saved in probes/; rerunning only sends the images that are still missing.
-// Options: RUNS (number of passes, default 1), CONCURRENCY (default 2).
+// Options: RUNS (number of passes, default 1), CONCURRENCY (default 2), API (chat | responses).
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 const { BASE_URL, API_KEY } = process.env
@@ -27,27 +27,45 @@ const label = target.replace(/[^a-z0-9.-]/gi, '_').toLowerCase()
 
 // ---------- 1. Have the endpoint read the image set ----------
 
+// 'chat' = /chat/completions, 'responses' = /responses. Falls back to /responses when the
+// endpoint has no /chat/completions route. Force one with API=chat or API=responses.
+let api = process.env.API === 'responses' ? 'responses' : 'chat'
+
+// A /responses body is either one JSON object or a server-sent event stream.
+function responsesText(raw) {
+  const events = raw.trimStart().startsWith('{')
+    ? [JSON.parse(raw)]
+    : raw.split('\n').filter((l) => l.startsWith('data: ') && l !== 'data: [DONE]').map((l) => JSON.parse(l.slice(6)))
+  const deltas = events.filter((e) => e.type === 'response.output_text.delta').map((e) => e.delta).join('')
+  if (deltas) return deltas
+  const done = events.map((e) => e.response ?? e).findLast((r) => Array.isArray(r.output))
+  return done?.output.flatMap((o) => o.content ?? []).map((c) => c.text ?? '').join('')
+}
+
 async function ask(id) {
-  const image = readFileSync(`${root}images/${id}.png`).toString('base64')
-  const res = await fetch(`${BASE_URL.replace(/\/$/, '')}/chat/completions`, {
+  const text = PREFIX + questions[id]
+  const image = `data:image/png;base64,${readFileSync(`${root}images/${id}.png`).toString('base64')}`
+  const body = api === 'chat'
+    ? { model: target, messages: [{ role: 'user', content: [{ type: 'text', text }, { type: 'image_url', image_url: { url: image } }] }] }
+    : { model: target, input: [{ role: 'user', content: [{ type: 'input_text', text }, { type: 'input_image', image_url: image }] }] }
+  const res = await fetch(`${BASE_URL.replace(/\/$/, '')}/${api === 'chat' ? 'chat/completions' : 'responses'}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
-    body: JSON.stringify({
-      model: target,
-      messages: [{ role: 'user', content: [
-        { type: 'text', text: PREFIX + questions[id] },
-        { type: 'image_url', image_url: { url: `data:image/png;base64,${image}` } },
-      ] }],
-    }),
+    body: JSON.stringify(body),
   })
+  if (res.status === 404 && api === 'chat' && !process.env.API) {
+    api = 'responses'
+    return ask(id)
+  }
   if (!res.ok) {
     const err = new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`)
     err.wait = res.status === 429 ? (Number(res.headers.get('retry-after')) || 30) * 1000 : 0
     throw err
   }
-  const text = (await res.json()).choices?.[0]?.message?.content
-  if (typeof text !== 'string' || !text.trim()) throw new Error('empty answer')
-  return text.trim()
+  const raw = await res.text()
+  const answer = api === 'chat' ? JSON.parse(raw).choices?.[0]?.message?.content : responsesText(raw)
+  if (typeof answer !== 'string' || !answer.trim()) throw new Error('empty answer')
+  return answer.trim()
 }
 
 mkdirSync(root + 'probes', { recursive: true })

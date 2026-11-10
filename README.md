@@ -16,7 +16,7 @@ cd modelVisionCompare
 BASE_URL=https://host/v1 API_KEY=sk-... node detect.mjs <model-name>
 ```
 
-The endpoint must be OpenAI-compatible (`/chat/completions`) and accept images. One pass sends 43 requests.
+The endpoint must be OpenAI-compatible (`/chat/completions` or `/responses`) and accept images. One pass sends 43 requests. Use the `https://` address: an `http://` address that redirects usually drops the API key.
 
 Output:
 
@@ -43,6 +43,7 @@ Options:
 | `node detect.mjs <model> <advertised-model>` | When the name sent to the API differs from the model the seller advertises |
 | `RUNS=3` | Read the image set 3 times for a firmer conclusion (default 1) |
 | `CONCURRENCY=4` | Number of parallel requests (default 2) |
+| `API=responses` | Call `/responses` instead of `/chat/completions`. Without it, the tool tries `/chat/completions` and switches by itself when that route does not exist |
 
 Answers are saved in `probes/`. Rerunning with the same model name only sends the images that are still missing; to measure from scratch, delete the matching file in `probes/`.
 
@@ -82,7 +83,7 @@ Cross-check on the baselines themselves (hide one pass, find the most similar pa
 
 ## Limitations
 
-- **Baselines were not collected through the raw API.** They came from each vendor's official command-line tool, while this tool calls `/chat/completions` directly. A different call path can shift answers slightly.
+- **Baselines were not collected through the raw API.** They came from each vendor's official command-line tool, while this tool calls the API directly. A different call path can shift answers slightly.
 - **Each model has only 2 baseline passes** (`claude-opus-5-5` has 4), so the verdict is a nearest neighbour, with no statistical test.
 - **A fixed image set can be recognized.** A reseller could detect these images and route just those requests to the real model.
 - **Baselines exist only for Claude and GPT**, and only OpenAI-compatible endpoints are supported.

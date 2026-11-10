@@ -16,7 +16,7 @@ cd modelVisionCompare
 BASE_URL=https://host/v1 API_KEY=sk-... node detect.mjs <tên-model>
 ```
 
-Endpoint phải là OpenAI-compatible (`/chat/completions`) và nhận ảnh. Một lượt gửi 43 request.
+Endpoint phải là OpenAI-compatible (`/chat/completions` hoặc `/responses`) và nhận ảnh. Một lượt gửi 43 request. Hãy dùng địa chỉ `https://`: địa chỉ `http://` bị chuyển hướng thường làm rơi API key.
 
 Kết quả (tool in bằng tiếng Anh):
 
@@ -43,6 +43,7 @@ Tùy chọn:
 | `node detect.mjs <model> <advertised-model>` | Khi tên gửi lên API khác tên model mà bên bán quảng cáo |
 | `RUNS=3` | Đọc bộ ảnh 3 lượt, kết luận chắc hơn (mặc định 1) |
 | `CONCURRENCY=4` | Số request chạy song song (mặc định 2) |
+| `API=responses` | Gọi `/responses` thay cho `/chat/completions`. Nếu không đặt, tool thử `/chat/completions` trước và tự chuyển khi endpoint không có route đó |
 
 Câu trả lời được lưu trong `probes/`. Chạy lại cùng tên model sẽ chỉ gửi những ảnh còn thiếu; muốn đo lại từ đầu thì xóa file tương ứng trong `probes/`.
 
@@ -82,7 +83,7 @@ Kiểm tra chéo trên chính bộ mốc chuẩn (giấu một lượt, tìm lư
 
 ## Giới hạn
 
-- **Mốc chuẩn chưa lấy qua API thô.** Chúng được lấy qua công cụ dòng lệnh chính hãng của từng hãng, còn tool này gọi thẳng `/chat/completions`. Khác đường gọi có thể làm lệch câu trả lời đôi chút.
+- **Mốc chuẩn chưa lấy qua API thô.** Chúng được lấy qua công cụ dòng lệnh chính hãng của từng hãng, còn tool này gọi thẳng API. Khác đường gọi có thể làm lệch câu trả lời đôi chút.
 - **Mỗi model mới có 2 lượt mốc chuẩn** (riêng `claude-opus-5-5` có 4), nên kết luận là láng giềng gần nhất, chưa có kiểm định thống kê.
 - **Bộ ảnh cố định có thể bị nhận ra.** Bên bán lại có thể phát hiện các ảnh này và chuyển riêng những request đó về model thật.
 - **Chỉ có mốc cho Claude và GPT**, và chỉ hỗ trợ endpoint OpenAI-compatible.
