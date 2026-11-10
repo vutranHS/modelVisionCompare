@@ -88,3 +88,7 @@ Kiểm tra chéo trên chính bộ mốc chuẩn (giấu một lượt, tìm lư
 ## Thêm mốc chuẩn
 
 Chạy tool trên một endpoint bạn tin là thật, rồi chép file từ `probes/` sang `baselines/` với tên `<model>-<số lượt>.json`.
+
+## Giấy phép
+
+MIT, xem file `LICENSE`. Áp dụng cho cả code, bộ ảnh và dữ liệu mốc chuẩn.
