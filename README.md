@@ -1,94 +1,96 @@
 # modelVisionCompare
 
-Đoán xem một API LLM đang thật sự chạy model nào bằng cách xem nó **đọc ảnh** ra sao. Dùng để kiểm tra API có bị "đè tem" hay không, tức là bán model rẻ dưới tên model đắt.
+**English** | [Tiếng Việt](README.vi.md)
 
-Mỗi model nhìn ảnh theo một kiểu riêng: gãy ở cỡ chữ khác nhau, đếm lệch khác nhau, đoán chữ mờ khác nhau. Tool cho model cần kiểm tra đọc 43 ảnh khó, rồi so câu trả lời với các model đã biết là thật.
+Guess which model an LLM API is really running by looking at how it **reads images**. Use it to check whether an API has been relabeled, meaning a cheap model sold under an expensive model's name.
 
-## Dùng
+Every model sees images in its own way: it breaks down at a different font size, miscounts differently, and guesses blurry text differently. This tool has the model under test read 43 hard images, then compares its answers with models known to be real.
 
-Cần Node 22 trở lên, không cần cài thêm gì.
+## Usage
+
+Requires Node 22 or later. Nothing else to install.
 
 ```bash
 git clone https://github.com/vutranHS/modelVisionCompare
 cd modelVisionCompare
-BASE_URL=https://host/v1 API_KEY=sk-... node detect.mjs <tên-model>
+BASE_URL=https://host/v1 API_KEY=sk-... node detect.mjs <model-name>
 ```
 
-Endpoint phải là OpenAI-compatible (`/chat/completions`) và nhận ảnh. Một lượt gửi 43 request.
+The endpoint must be OpenAI-compatible (`/chat/completions`) and accept images. One pass sends 43 requests.
 
-Kết quả:
+Output:
 
 ```
-Đã đọc 43/43 ảnh, 1 lượt.
+Read 43/43 images, 1 pass(es).
 
-ĐOÁN: gpt-6-luna, tương đồng 74%
+GUESS: gpt-6-luna, 74% similar
 
-Model mốc chuẩn       Tương đồng   Model đó tự giống chính nó
+Baseline model        Similarity   That model vs itself
 gpt-6-luna             74%          74%
 gpt-5.6-sol            67%          87%
 gpt-6-sol              67%          85%
 gpt-6.1-sol            66%          87%
 gpt-6.1-terra          66%          83%
 
-Được quảng cáo là: claude-opus-5-5
-→ NGHI ĐÈ TEM KHÁC HÃNG: giống gpt-6-luna (74%) hơn claude-opus-5-5 (63%).
+Advertised as: claude-opus-5-5
+→ LIKELY RELABELED, DIFFERENT VENDOR: closer to gpt-6-luna (74%) than to claude-opus-5-5 (63%).
 ```
 
-Tùy chọn:
+Options:
 
-| Cách | Tác dụng |
+| How | Effect |
 |---|---|
-| `node detect.mjs <model> <model-được-quảng-cáo>` | Khi tên gửi lên API khác tên model mà bên bán quảng cáo |
-| `RUNS=3` | Đọc bộ ảnh 3 lượt, kết luận chắc hơn (mặc định 1) |
-| `CONCURRENCY=4` | Số request chạy song song (mặc định 2) |
+| `node detect.mjs <model> <advertised-model>` | When the name sent to the API differs from the model the seller advertises |
+| `RUNS=3` | Read the image set 3 times for a firmer conclusion (default 1) |
+| `CONCURRENCY=4` | Number of parallel requests (default 2) |
 
-Câu trả lời được lưu trong `probes/`. Chạy lại cùng tên model sẽ chỉ gửi những ảnh còn thiếu; muốn đo lại từ đầu thì xóa file tương ứng trong `probes/`.
+Answers are saved in `probes/`. Rerunning with the same model name only sends the images that are still missing; to measure from scratch, delete the matching file in `probes/`.
 
-## Đọc con số tương đồng thế nào
+## Reading the similarity number
 
-Tương đồng không bao giờ lên 100%. Hai lượt đọc của cùng một model thật cũng chỉ giống nhau 74–91%, đó là cột "Model đó tự giống chính nó". Vì vậy:
+Similarity never reaches 100%. Two passes of the same real model only match each other 74–91% of the way, which is the "That model vs itself" column. So:
 
-- Tương đồng **gần bằng cột bên phải**: nhiều khả năng đúng là model đó.
-- Tương đồng **thấp hơn hẳn** (tool sẽ ghi "Lưu ý"): có thể là một model chưa có trong bộ mốc.
+- Similarity **close to the right column**: very likely that model.
+- Similarity **well below it** (the tool prints a "Note"): possibly a model that has no baseline yet.
 
-## Trong repo có gì
+## What is in the repo
 
-| Thứ | Nội dung |
+| Item | Contents |
 |---|---|
-| `images/` | 43 ảnh test: chữ nhỏ dần, chữ nhạt dần, chữ xoay, đếm chấm, đồng hồ kim, captcha, chấm màu kiểu Ishihara, bia mộ mòn, graffiti, đơn thuốc viết tay… |
-| `questions.json` | Câu hỏi cho từng ảnh |
-| `baselines/` | Mốc chuẩn: câu trả lời của 14 model, mỗi model 2 lượt trở lên |
-| `detect.mjs` | Toàn bộ tool |
+| `images/` | 43 test images: shrinking text, fading text, rotated text, dot counting, analog clocks, captchas, Ishihara-style dot plates, a worn gravestone, graffiti, a handwritten prescription… |
+| `questions.json` | The question asked for each image |
+| `baselines/` | Baselines: answers from 14 models, two or more passes each |
+| `detect.mjs` | The whole tool |
 
-Model có mốc chuẩn:
+Models with a baseline:
 
 - **Claude:** `claude-fable-5-2`, `claude-opus-5-5`, `claude-opus-4-8`, `claude-opus-4-7`, `claude-sonnet-5-5`, `claude-haiku-5-5`
 - **GPT:** `gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`
 
-## Cách chấm
+## How scoring works
 
-1. Với mỗi ảnh, so câu trả lời của endpoint với câu trả lời mốc chuẩn (bỏ hoa thường và dấu câu): độ giống = 1 − khoảng cách Levenshtein ÷ độ dài.
-2. Lấy trung bình trên mọi ảnh và mọi lượt mốc chuẩn của từng model.
-3. Model có độ giống trung bình cao nhất là phỏng đoán.
+1. For each image, compare the endpoint's answer with a baseline answer (case and punctuation removed): similarity = 1 − Levenshtein distance ÷ length.
+2. Average over all images and all baseline passes of each model.
+3. The model with the highest average similarity is the guess.
 
-## Độ tin cậy
+## Reliability
 
-Kiểm tra chéo trên chính bộ mốc chuẩn (giấu một lượt, tìm lượt giống nhất trong số còn lại):
+Cross-check on the baselines themselves (hide one pass, find the most similar pass among the rest):
 
-- **Đúng hãng: 30/30 lượt.** Phân biệt Claude với GPT là chắc.
-- **Đúng model: 22/30 lượt.** Phân biệt các model cùng hãng mới được một phần. `gpt-6-astra` và `gpt-6.1-sol` gần như không tách được; Haiku và Sonnet đôi khi bị nhận thành Opus 5.5.
+- **Right vendor: 30 of 30 passes.** Telling Claude from GPT is solid.
+- **Right model: 22 of 30 passes.** Telling models of the same vendor apart only partly works. `gpt-6-astra` and `gpt-6.1-sol` are nearly indistinguishable; Haiku and Sonnet are sometimes taken for Opus 5.5.
 
-## Giới hạn
+## Limitations
 
-- **Mốc chuẩn chưa lấy qua API thô.** Chúng được lấy qua công cụ dòng lệnh chính hãng của từng hãng, còn tool này gọi thẳng `/chat/completions`. Khác đường gọi có thể làm lệch câu trả lời đôi chút.
-- **Mỗi model mới có 2 lượt mốc chuẩn** (riêng `claude-opus-5-5` có 4), nên kết luận là láng giềng gần nhất, chưa có kiểm định thống kê.
-- **Bộ ảnh cố định có thể bị nhận ra.** Bên bán lại có thể phát hiện các ảnh này và chuyển riêng những request đó về model thật.
-- **Chỉ có mốc cho Claude và GPT**, và chỉ hỗ trợ endpoint OpenAI-compatible.
+- **Baselines were not collected through the raw API.** They came from each vendor's official command-line tool, while this tool calls `/chat/completions` directly. A different call path can shift answers slightly.
+- **Each model has only 2 baseline passes** (`claude-opus-5-5` has 4), so the verdict is a nearest neighbour, with no statistical test.
+- **A fixed image set can be recognized.** A reseller could detect these images and route just those requests to the real model.
+- **Baselines exist only for Claude and GPT**, and only OpenAI-compatible endpoints are supported.
 
-## Thêm mốc chuẩn
+## Adding a baseline
 
-Chạy tool trên một endpoint bạn tin là thật, rồi chép file từ `probes/` sang `baselines/` với tên `<model>-<số lượt>.json`.
+Run the tool against an endpoint you trust to be real, then copy the file from `probes/` to `baselines/` as `<model>-<pass number>.json`.
 
-## Giấy phép
+## License
 
-MIT, xem file `LICENSE`. Áp dụng cho cả code, bộ ảnh và dữ liệu mốc chuẩn.
+MIT, see `LICENSE`. It covers the code, the image set and the baseline data.
